@@ -1,4 +1,4 @@
 # restapi-express-mongodb
 Build REST API – Node.js, Express &amp; MongoDb
 
-Detail Article : https://simpankode.com/2022/10/25/build-rest-api-node-js-express-mongodb/
+Detail Article : https://lazycoding.net/build-rest-api-using-node-js-express-mongodb/
