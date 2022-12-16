@@ -1,6 +1,7 @@
 const express = require("express");
 const app = express();
 const mongoose = require("mongoose");
+const FileUpload = require("express-fileupload");
 const morgan = require("morgan");
 const bodyParser = require("body-parser");
 const cors = require("cors");
@@ -8,8 +9,9 @@ const PORT = process.env.PORT || 5000;
 const DB_CONNECTION =
   process.env.DB_CONNECTION || "mongodb://localhost:27017/db_shop";
 
-app.use(morgan("tiny"));
-app.use(express.static("uploads"));
+app.use(morgan("dev"));
+app.use(express.static("public"));
+app.use(FileUpload());
 app.use(cors());
 app.use(bodyParser.json());
 app.use(bodyParser.urlencoded({ extended: false }));
@@ -20,7 +22,7 @@ const categoryRoutes = require("./routes/category");
 const productRoutes = require("./routes/product");
 
 app.get("/", (req, res) => {
-  res.send("Hello World!");
+  res.send("Build REST API using Node js, Express & MongoDB");
 });
 app.use("/auth", authRoutes);
 app.use("/categories", categoryRoutes);

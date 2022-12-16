@@ -14,6 +14,9 @@ const productSchema = mongoose.Schema({
   image: {
     type: String,
   },
+  imageUrl: {
+    type: String,
+  },
   category: {
     type: Schema.Types.ObjectId,
     ref: "Category",

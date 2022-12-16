@@ -1,6 +1,5 @@
 const Category = require("../models/Category");
 
-// GET ALL
 const getCategories = async (req, res) => {
   const name = req.query.name;
   let condition = name
@@ -18,7 +17,6 @@ const getCategories = async (req, res) => {
   }
 };
 
-// GET ONE
 const getCategoryById = async (req, res) => {
   try {
     const category = await Category.findById({ _id: req.params.id }).select(
@@ -30,7 +28,6 @@ const getCategoryById = async (req, res) => {
   }
 };
 
-// CREATE
 const createCategory = async (req, res) => {
   try {
     const data = new Category({
@@ -43,7 +40,6 @@ const createCategory = async (req, res) => {
   }
 };
 
-// UPDATE
 const updateCategory = async (req, res) => {
   try {
     const data = req.body;
@@ -60,11 +56,10 @@ const updateCategory = async (req, res) => {
   }
 };
 
-// DELETE
 const deleteCategory = async (req, res) => {
   try {
-    const data = await Category.findByIdAndDelete(req.params.id);
-    res.status(200).json({ message: "Comment successfully deleted !" });
+    await Category.findByIdAndDelete(req.params.id);
+    res.status(200).json({ message: "Category successfully deleted !" });
   } catch (err) {
     res.status(400).json({ message: err });
   }

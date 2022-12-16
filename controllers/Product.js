@@ -1,11 +1,11 @@
 const fs = require("fs");
+const path = require("path");
 const Product = require("../models/Product");
 
-// GET ALL
 const getProducts = async (req, res) => {
   const name = req.query.name;
-  const currentPage = req.query.page || 1;
-  const perPage = req.query.perpage || 10;
+  const page = req.query.page || 1;
+  const limit = req.query.limit || 10;
 
   let condition = name
     ? { name: { $regex: new RegExp(name), $options: "i" } }
@@ -13,13 +13,16 @@ const getProducts = async (req, res) => {
 
   try {
     const products = await Product.find(condition)
-      .skip((currentPage - 1) * perPage)
-      .limit(perPage)
+      .skip((page - 1) * limit)
+      .limit(limit)
       .populate({ path: "category", select: "_id name" })
       .sort("name");
+
+    const totalProducts = await Product.find(condition);
+
     res.status(200).json({
-      posts: post,
-      total_posts: post.length,
+      products: products,
+      total_products: totalProducts.length,
     });
   } catch (err) {
     res.status(400).json({
@@ -28,14 +31,13 @@ const getProducts = async (req, res) => {
   }
 };
 
-// GET ONE
 const getProductById = async (req, res) => {
   try {
     const product = await Product.findById({ _id: req.params.id }).populate({
       path: "category",
       select: "_id name",
     });
-    res.status(200).json(post);
+    res.status(200).json(product);
   } catch (err) {
     res.status(400).json({
       message: err.message,
@@ -43,88 +45,95 @@ const getProductById = async (req, res) => {
   }
 };
 
-// CREATE
 const createProduct = async (req, res) => {
   if (req.files === null)
-    return res.status(400).json({ msg: "No Image Uploaded" });
+    return res.status(400).json({ message: "No File Uploaded" });
 
-  const imageUrl = `${req.protocol}://${req.get("host")}/${req.file.filename}`;
+  const file = req.files.image;
+  const fileSize = file.data.length;
+  const ext = path.extname(file.name);
+  const fileName = file.md5 + ext;
+  const url = `${req.protocol}://${req.get("host")}/images/${fileName}`;
+  const allowedType = [".png", ".jpg", ".jpeg"];
 
-  const createProduct = new Product({
-    name: req.body.title,
-    price: req.body.content,
-    category: req.body.category,
-    image: imageUrl,
+  if (!allowedType.includes(ext.toLowerCase()))
+    return res.status(422).json({ message: "Invalid Images" });
+  if (fileSize > 5000000)
+    return res.status(422).json({ message: "Image must be less than 5 MB" });
+
+  file.mv(`./public/images/${fileName}`, async (err) => {
+    if (err) return res.status(500).json({ message: err.message });
+    try {
+      const createProduct = new Product({
+        name: req.body.name,
+        price: req.body.price,
+        category: req.body.category,
+        image: fileName,
+        imageUrl: url,
+      });
+      const product = await createProduct.save();
+      res.status(201).json({
+        message: "Product Created Successfuly",
+        data: product,
+      });
+    } catch (error) {
+      res.status(400).json({ message: error.message });
+    }
   });
-  try {
-    const product = await createProduct.save();
-    res.status(201).json({
-      message: "Product Created Successfuly",
-    });
-  } catch (err) {
-    res.status(400).json({
-      message: err.message,
-    });
-  }
 };
 
-// UPDATE
 const updateProduct = async (req, res) => {
-  const productById = await Product.findById({ _id: req.params.id });
-  // Check Image
-  if (req.file == undefined) {
-    try {
-      const productUpdate = await Product.updateOne(
-        { _id: req.params.id },
-        {
-          name: req.body.title,
-          price: req.body.content,
-          category: req.body.category,
-        }
-      );
-      res.status(201).json({
-        message: "Product Updated Successfuly",
-      });
-    } catch (err) {
-      res.status(400).json({
-        message: err.message,
-      });
-    }
+  const product = await Product.findById({ _id: req.params.id });
+  if (!product) return res.status(404).json({ message: "No Data Found" });
+
+  let fileName = "";
+  if (req.files === null) {
+    fileName = product.image;
   } else {
-    try {
-      const imageUrl = `${req.protocol}://${req.get("host")}/${
-        req.file.filename
-      }`;
-      const productUpdate = await Product.updateOne(
-        { _id: req.params.id },
-        {
-          name: req.body.title,
-          price: req.body.content,
-          category: req.body.category,
-          image: imageUrl,
-        }
-      );
-      // Delete old image
-      const filepath = `./uploads/${productById.image}`;
-      fs.unlinkSync(filepath);
-      res.status(201).json({
-        message: "Product Updated Successfuly",
-      });
-    } catch (err) {
-      res.status(400).json({
-        message: err.message,
-      });
-    }
+    const file = req.files.image;
+    const fileSize = file.data.length;
+    const ext = path.extname(file.name);
+    fileName = file.md5 + ext;
+    const allowedType = [".png", ".jpg", ".jpeg"];
+
+    if (!allowedType.includes(ext.toLowerCase()))
+      return res.status(422).json({ message: "Invalid Images" });
+    if (fileSize > 5000000)
+      return res.status(422).json({ message: "Image must be less than 5 MB" });
+
+    const filepath = `./public/images/${product.image}`;
+    fs.unlinkSync(filepath);
+    file.mv(`./public/images/${fileName}`, (err) => {
+      if (err) return res.status(500).json({ message: err.message });
+    });
+  }
+
+  const url = `${req.protocol}://${req.get("host")}/images/${fileName}`;
+
+  try {
+    await Product.updateOne(
+      { _id: req.params.id },
+      {
+        name: req.body.name,
+        price: req.body.price,
+        category: req.body.category,
+        image: fileName,
+        imageUrl: url,
+      }
+    );
+    res.status(201).json({
+      message: "Product Updated Successfuly",
+    });
+  } catch (error) {
+    res.status(400).json({ message: error.message });
   }
 };
 
-// DELETE
 const deleteProduct = async (req, res) => {
   try {
-    // Delete Product by id
-    const productDelete = await Product.deleteOne({ _id: req.params.id });
+    await Product.deleteOne({ _id: req.params.id });
     res.status(200).json({
-      message: "Post successfully deleted !",
+      message: "Post successfully deleted",
     });
   } catch (err) {
     res.status(400).json({
